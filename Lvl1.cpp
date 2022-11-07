@@ -4,9 +4,6 @@
 using namespace std;
 
 int main() {
-	string glyphs[] = {
-	"s"
-	};
 
 	Map* map = loadMap("map.blergh");
 	ConsoleInfo* ci = new ConsoleInfo;
@@ -14,7 +11,8 @@ int main() {
 	
 
 	clear();
-	drawMap(map, glyphs, ci);
+	drawMap(map, ci);
+
 	byeMap(map);
 
 
