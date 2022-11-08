@@ -5,7 +5,7 @@ using namespace std;
 
 int main() {
 
-	Map* map = loadMap("map.blergh");
+	Map* map = loadMap("map.txt");
 	ConsoleInfo* ci = new ConsoleInfo;
 	getConsoleInfo(ci, 2, 30, 2, 30);
 	
