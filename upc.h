@@ -1,3 +1,4 @@
+/* #ifndef es la forma estandard de declarar un h, #pragma no funciona en gcc */
 #ifndef __UPC_H__
 #define __UPC_H__
 
@@ -113,8 +114,8 @@ int randint(int a, int b) {
 }
 
 struct ConsoleInfo {
-	int numColumns;
-	int numRows;
+	int maxColumns;
+	int maxRows;
 	int bottom;
 	int left;
 	int right;
@@ -127,6 +128,25 @@ int randColor() {
 	return rand() % 16;
 }
 
+enum Colors {
+	BLACK,
+	DARK_RED,
+	DARK_GREEN,
+	DARK_YELLOW,
+	DARK_BLUE,
+	DARK_MAGENTA,
+	DARK_CYAN,
+	DARK_WHITE,
+	BRIGHT_BLACK,
+	BRIGHT_RED,
+	BRIGHT_GREEN,
+	BRIGHT_YELLOW,
+	BRIGHT_BLUE,
+	BRIGHT_MAGENTA,
+	BRIGHT_CYAN,
+	WHITE
+};
+
 /*************************************
  * elementos condicionales al sistema operativo
  * **********************************/
@@ -137,24 +157,7 @@ int randColor() {
 #include <windows.h>
 #include <conio.h>
 
-enum Colors {
-	BLACK,
-	DARK_BLUE,
-	DARK_GREEN,
-	DARK_CYAN,
-	DARK_RED,
-	DARK_MAGENTA,
-	DARK_YELLOW,
-	DARK_WHITE,
-	BRIGHT_BLACK,
-	BRIGHT_BLUE,
-	BRIGHT_GREEN,
-	BRIGHT_CYAN,
-	BRIGHT_RED,
-	BRIGHT_MAGENTA,
-	BRIGHT_YELLOW,
-	WHITE
-};
+int __WINCOLOR__[] = { 0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15 };
 
 /* dormir (detener) proceso por x milisegundos */
 void sleep4(int milliseconds) {
@@ -175,11 +178,13 @@ void gotoxy(int x, int y) {
 }
 
 void background(int color) {
+	color = __WINCOLOR__[color];
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(handle, color << 4);
 }
 
 void foreground(int color) {
+	color = __WINCOLOR__[color];
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(handle, color);
 }
@@ -191,6 +196,8 @@ void clearColor() {
 
 /* utilice solo esta funcion */
 void color(int forecolor, int backcolor = BLACK) {
+	forecolor = __WINCOLOR__[forecolor];
+	backcolor = __WINCOLOR__[backcolor];
 	HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(handle, backcolor << 4 | forecolor);
 }
@@ -198,8 +205,8 @@ void color(int forecolor, int backcolor = BLACK) {
 void getConsoleInfo(ConsoleInfo* ci, int mt = 0, int mr = 0, int mb = 0, int ml = 0) {
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-	ci->numColumns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-	ci->numRows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+	ci->maxColumns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+	ci->maxRows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 	ci->top = csbi.srWindow.Top + mt;
 	ci->right = csbi.srWindow.Right - mr;
 	ci->bottom = csbi.srWindow.Bottom - mb;
@@ -208,7 +215,7 @@ void getConsoleInfo(ConsoleInfo* ci, int mt = 0, int mr = 0, int mb = 0, int ml 
 	ci->boxCols = ci->right - ci->left + 1;
 }
 
-void HideCursor() {
+void hideCursor() {
 	HANDLE hCon;
 	hCon = GetStdHandle(STD_OUTPUT_HANDLE);
 	CONSOLE_CURSOR_INFO cci;
@@ -217,6 +224,27 @@ void HideCursor() {
 	SetConsoleCursorInfo(hCon, &cci);
 }
 
+void showCursor() {
+	HANDLE hCon;
+	hCon = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_CURSOR_INFO cci;
+	cci.dwSize = 2;
+	cci.bVisible = TRUE;
+	SetConsoleCursorInfo(hCon, &cci);
+}
+
+void noecho() {
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode = 0;
+	GetConsoleMode(hStdin, &mode);
+	SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+}
+void echo() {
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode = 0;
+	GetConsoleMode(hStdin, &mode);
+	SetConsoleMode(hStdin, mode & (ENABLE_ECHO_INPUT));
+}
 
 /* else del bloque _WIN32 */
 #else
@@ -226,25 +254,6 @@ void HideCursor() {
 #include <sys/select.h>
 #include <termios.h>
 #include <sys/ioctl.h>
-
-enum Colors {
-	BLACK,
-	DARK_RED,
-	DARK_GREEN,
-	DARK_YELLOW,
-	DARK_BLUE,
-	DARK_MAGENTA,
-	DARK_CYAN,
-	DARK_WHITE,
-	BRIGHT_BLACK,
-	BRIGHT_RED,
-	BRIGHT_GREEN,
-	BRIGHT_YELLOW,
-	BRIGHT_BLUE,
-	BRIGHT_MAGENTA,
-	BRIGHT_CYAN,
-	WHITE
-};
 
 /* dormir (detener) proceso por x milisegundos */
 void sleep4(int milliseconds) {
@@ -292,11 +301,11 @@ void color(int forecolor, int backcolor = -1) {
 void getConsoleInfo(ConsoleInfo* ci, int mt = 0, int mr = 0, int mb = 0, int ml = 0) {
 	winsize size;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-	ci->numColumns = size.ws_col;
-	ci->numRows = size.ws_row;
+	ci->maxColumns = size.ws_col;
+	ci->maxRows = size.ws_row;
 	ci->top = mt;
-	ci->right = ci->numColumns - mr - 1;
-	ci->bottom = ci->numRows - mb - 1;
+	ci->right = ci->maxColumns - mr - 1;
+	ci->bottom = ci->maxRows - mb - 1;
 	ci->left = ml;
 	ci->boxRows = ci->bottom - ci->top + 1;
 	ci->boxCols = ci->right - ci->left + 1;
@@ -352,6 +361,11 @@ void echo() {
 /* endif del bloque _WIN32 (else) */
 #endif
 
-
+void resetAll() {
+	clearColor();
+	clear();
+	showCursor();
+	echo();
+}
 
 #endif
